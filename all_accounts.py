@@ -7,7 +7,6 @@ from acc_secret_info import accounts
 from datetime import datetime
 from pprint import pprint
 
-
 # GOOGLE API
 
 # данные для подключения к таблице
@@ -18,14 +17,12 @@ spreadsheet = gc.open_by_url(sheet_url)
 
 
 # стереть строки в таблице
-def google_upd_start(page: str):
+def clear_rows(page: str):
     try:  # проверить есть ли такая страница
         sheet = spreadsheet.worksheet(page)
     except gspread.exceptions.WorksheetNotFound:  # создать страницу если ее нет
         clone_page(new_name=page)
         sheet = spreadsheet.worksheet(page)
-
-    sheet.update(range_name='A2', values='Обновление в процессе'.upper())
 
     # удалить все строки кроме первых двух
     rows = sheet.row_count
@@ -49,13 +46,52 @@ def clone_page(new_name: str):
         "source": {"sheetId": template.id, "startRowIndex": 0, "startColumnIndex": 0},
         "destination": {"sheetId": new_worksheet.id, "startRowIndex": 0, "startColumnIndex": 0},
         "pasteType": "PASTE_FORMAT", }}]}
-
     spreadsheet.batch_update(body)
     print('Создан лист', new_name)
 
 
+# что делать каждое 1ое число в листе main
+def new_month_action():
+    # вставить новые строки
+    insert_rows()
+    # объединить 3 ячейки
+    merge_cells()
+    # вписать в них новый месяц
+    spreadsheet.worksheet(main_page).update(range_name='D2', values=month_page)
+
+
+def insert_rows():
+    start = 1
+    end = len(accounts) + 4  # = 8
+    # отправить insertDimension запрос
+    body = {"requests": [{"insertDimension": {"range": {
+            "sheetId": 0,
+            "dimension": "ROWS",
+            "startIndex": start,
+            "endIndex": end}}}, ], }
+    spreadsheet.batch_update(body)
+    print('Вставлены строки с', start, 'по', end)
+
+
+def update_alert(page):
+    sheet = spreadsheet.worksheet(page)
+    sheet.update(range_name='A2', values='Обновление в процессе'.upper())
+
+
+def merge_cells():
+    # отправить mergeCells запрос
+    body = {"requests": [{"mergeCells": {"range": {
+            "sheetId": 0,
+            "startRowIndex": 1,
+            "endRowIndex": 2,
+            "startColumnIndex": 3,
+            "endColumnIndex": 7, }, "mergeType": "MERGE_ALL"}}, ], }
+    spreadsheet.batch_update(body)
+    print('mergeCells')
+
+
 # указать время обновления
-def google_upd_end(page: str):
+def put_upd_time(page: str):
     upd_text = f'Обновлено {datetime.now().strftime("%d/%m, %H:%M:%S")}'
     print(upd_text)
     spreadsheet.worksheet(page).update(range_name='A2', values=upd_text)
@@ -71,7 +107,7 @@ def google_append(page: str, data: list):
 # TOLOKA API
 
 # собрать все данные с аккаунта
-def read_account(account: str, page: str):
+def read_account(row_num, account: str, page: str):
     # данные аккаунта
     token = accounts[account]['token']
     toloka_client = toloka.TolokaClient(token, 'PRODUCTION')
@@ -91,7 +127,9 @@ def read_account(account: str, page: str):
 
     # внести строку в главный лист таблицы
     acc_data = [account, msgs, balance, spent, block, projects, pools]
-    google_append(page, data=acc_data)
+    for i, val in enumerate(acc_data, start=1):
+        print(f'row: {row_num}, col: {i}, val: {val}')
+        spreadsheet.worksheet(page).update_cell(row=row_num, col=i, value=val)
 
     # просмотреть каждый активный проект в аккаунте
     for project_id in acc_dict:
@@ -119,16 +157,18 @@ def count_funds(acc: str) -> dict:
     else:
         token = accounts[acc]['token']
 
+    # период трат
+    first_day_this_month = datetime.today().replace(day=1).strftime('%Y-%m-%d')
+    from_date = first_day_this_month  # включительно. тут мне нужно 1ое число текущего месяца
+    till_date = '3023-11-30'  # не включительно. если указать дату из будущего, то поиск будет до сейчас, поэтому 3023
+
     # запрос
     headers = {"Authorization": "OAuth %s" % token, "Content-Type": "application/JSON"}
-    start_date = '2023-10-01'   # включительно
-    finish_date = '2023-11-30'  # не включительно
-    url = f'https://platform.toloka.ai/api/billing/company/expense-log?from={start_date}&to={finish_date}&timezone=%2B03%3A00&requesterId=company'
+    url = f'https://platform.toloka.ai/api/billing/company/expense-log?from={from_date}&to={till_date}&timezone=%2B03%3A00&requesterId=company'
 
     # ответ
     response = requests.get(url, headers=headers)
     full_money_data = json.loads(response.content)
-    # pprint(full_money_data)
 
     # создать ключи в словаре и переменные для подсчета
     output_keys = ('projects', 'pools', 'total_spent', 'total_block')
@@ -153,11 +193,9 @@ def count_funds(acc: str) -> dict:
                 continue
 
             # данные проекта
-            # project_name = assignment_bill['project']['name']
             project_id = assignment_bill['project']['id']
             pool_id = assignment_bill['pool']['id']
             projects_dict.setdefault(project_id, {})
-            project_link = f'https://platform.toloka.ai/requester/project/{project_id}'
 
             # потрачено и заморожено
             spent = float(assignment_bill['spent'] + assignment_bill['fee'])
@@ -199,7 +237,6 @@ def read_comment(comment: str) -> tuple:
     return comment, client, manager
 
 
-
 # данные с проекта
 def read_project(project_id, account, acc_dict, toloka_client):
     # данные проекта
@@ -217,39 +254,48 @@ def read_project(project_id, account, acc_dict, toloka_client):
 
     # внести в таблицу
     project_data = [proj_name, account, spent, block, proj_url, client, manager, comment]
-    google_append(page=month_and_year(), data=project_data)
+    google_append(page=month_page, data=project_data)
 
 
 # текущий месяц и год
-def month_and_year() -> str:  # > например "November 23"
+def month_now() -> str:  # > например "November 23"
     current_date = datetime.now()
     month = current_date.strftime('%B')
-    year = str(datetime.now().year)
-    result = f"{month} {year[2:]}"
-    return result
+    return month
+
+
+month_page = month_now()  # страница текущего месяца
+main_page = 'Main'  # главная страница
 
 
 # запустить всё
 def accounts_update():
-    month_page = month_and_year()  # страница текущего месяца
-    main_page = 'Main'  # главная страница
-
     try:
-        # очистить таблицу
-        google_upd_start(page=main_page)
-        google_upd_start(page=month_page)
         print('\nstart')
+        # какой месяц написан в таблице
+        saved_month = spreadsheet.worksheet(main_page).acell('D2').value
+
+        # если уже другой мес
+        if saved_month != month_page:
+            new_month_action()
+
+        # очистить таблицу
+        clear_rows(page=month_page)
+
+        update_alert(page=month_page)
+        update_alert(page=main_page)
 
         # собрать и внести данные каждого аккаунта в гугл таблицы
-        for account in accounts:
-            read_account(account, page=main_page)
+        for row_num, account in enumerate(accounts, start=3):
+            read_account(row_num, account, page=main_page)
 
         # вписать время последнего обновления
-        google_upd_end(page=main_page)
-        google_upd_end(page=month_page)
+        put_upd_time(page=main_page)
+        put_upd_time(page=month_page)
         print('ok')
+
+    # если что-то пошло не так, записать это в таблице
     except Exception as e:
-        # если что-то пошло не так, записать это в таблице
         print(e)
         t = datetime.now().strftime("%d/%m, %H:%M:%S")
         spreadsheet.worksheet(main_page).update(range_name='B2', values=f'ОШИБКА {t}\n{e}')
