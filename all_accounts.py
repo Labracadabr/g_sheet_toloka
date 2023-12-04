@@ -242,7 +242,7 @@ def read_project(project_id, account, acc_dict, toloka_client):
     # данные проекта
     project = toloka_client.get_project(project_id=project_id)
     proj_url = f'https://platform.toloka.ai/requester/project/{project_id}'
-
+    create_date = str(project.created.date())
     proj_name = project.public_name
 
     # данные из private_comment. если в поле нет разделителя, то client и manager будут пустые
@@ -253,7 +253,7 @@ def read_project(project_id, account, acc_dict, toloka_client):
     block = acc_dict[project_id].get('block')
 
     # внести в таблицу
-    project_data = [proj_name, account, spent, block, proj_url, client, manager, comment]
+    project_data = [proj_name, create_date, account, spent, block, proj_url, client, manager, comment]
     google_append(page=month_page, data=project_data)
 
 
