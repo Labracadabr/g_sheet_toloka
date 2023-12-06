@@ -1,3 +1,4 @@
+import traceback
 import gspread
 import toloka.client as toloka
 import datetime
@@ -295,7 +296,8 @@ def accounts_update():
         print('ok')
 
     # если что-то пошло не так, записать это в таблице
-    except Exception as e:
-        print(e)
+    except Exception:
+        err = traceback.format_exc()
+        print(err)
         t = datetime.now().strftime("%d/%m, %H:%M:%S")
-        spreadsheet.worksheet(main_page).update(range_name='B2', values=f'ОШИБКА {t}\n{e}')
+        spreadsheet.worksheet(main_page).update(range_name='B2', values=f'ОШИБКА {t}\n{err}')
