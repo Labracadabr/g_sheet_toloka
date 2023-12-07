@@ -6,18 +6,18 @@ from new_pools import pools
 from all_accounts import accounts_update
 
 
-#  эта функция запускается раз в сутки
-def main():
-    accounts_update()   # большой скрипт
-    pools()             # скрипт поменьше
+# большой скрипт - запускать каждые 6 часов
+update_hours = [0, 6, 12, 18]
+for hour in update_hours:
+    schedule.every().day.at(f"{hour:02d}:00").do(accounts_update)
 
+# скрипт поменьше - запускать каждые 24 ч
+schedule.every().day.at("02:50").do(pools)
 
-# время запуска
-upd_hour, upd_minute = 23, 59
-schedule.every().day.at(f"{upd_hour:02d}:{upd_minute:02d}").do(main)
+print('Сейчас', datetime.now().strftime("%H:%M:%S"))
 
 # поллинг каждые n секунд
-n = 30
+n = 20
 while 1:
     # проверить, не настало ли время
     schedule.run_pending()
