@@ -6,8 +6,8 @@ from new_pools import pools
 from all_accounts import accounts_update
 
 
-# большой скрипт - запускать каждые 6 часов
-update_hours = [0, 6, 12, 18]
+# большой скрипт - запускать неск раз в день
+update_hours = [10, 18]
 for hour in update_hours:
     schedule.every().day.at(f"{hour:02d}:00").do(accounts_update)
 

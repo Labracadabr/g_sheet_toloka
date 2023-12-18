@@ -297,7 +297,7 @@ def accounts_update():
 
     # если что-то пошло не так, записать это в таблице
     except Exception:
-        err = traceback.format_exc()
-        print(err)
+        error = traceback.format_exc()
+        print(error)
         t = datetime.now().strftime("%d/%m, %H:%M:%S")
-        spreadsheet.worksheet(main_page).update(range_name='B2', values=f'ОШИБКА {t}\n{err}')
+        spreadsheet.worksheet(main_page).update(range_name='B2', values=f'ОШИБКА {t}\n{error}')
