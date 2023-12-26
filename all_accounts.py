@@ -1,3 +1,4 @@
+import time
 import traceback
 import gspread
 import toloka.client as toloka
@@ -6,6 +7,7 @@ import requests
 import json
 from acc_secret_info import accounts
 from datetime import datetime
+from gspread.exceptions import APIError
 from pprint import pprint
 
 # GOOGLE API
@@ -271,33 +273,48 @@ main_page = 'Main'  # главная страница
 
 # запустить всё
 def accounts_update():
-    try:
-        print('\nstart')
-        # какой месяц написан в таблице
-        saved_month = spreadsheet.worksheet(main_page).acell('D2').value
+    tries = 0
+    while True:
+        try:
+            print('\nstart')
+            # какой месяц написан в таблице
+            saved_month = spreadsheet.worksheet(main_page).acell('D2').value
 
-        # если уже другой мес
-        if saved_month != month_page:
-            new_month_action()
+            # если уже другой мес
+            if saved_month != month_page:
+                new_month_action()
 
-        # очистить таблицу
-        clear_rows(page=month_page)
+            # очистить таблицу
+            clear_rows(page=month_page)
 
-        update_alert(page=month_page)
-        update_alert(page=main_page)
+            update_alert(page=month_page)
+            update_alert(page=main_page)
 
-        # собрать и внести данные каждого аккаунта в гугл таблицы
-        for row_num, account in enumerate(accounts, start=3):
-            read_account(row_num, account, page=main_page)
+            # собрать и внести данные каждого аккаунта в гугл таблицы
+            for row_num, account in enumerate(accounts, start=3):
+                read_account(row_num, account, page=main_page)
 
-        # вписать время последнего обновления
-        put_upd_time(page=main_page)
-        put_upd_time(page=month_page)
-        print('ok')
+            # вписать время последнего обновления
+            put_upd_time(page=main_page)
+            put_upd_time(page=month_page)
+            print('ok')
 
-    # если что-то пошло не так, записать это в таблице
-    except Exception:
-        error = traceback.format_exc()
-        print(error)
-        t = datetime.now().strftime("%d/%m, %H:%M:%S")
-        spreadsheet.worksheet(main_page).update(range_name='B2', values=f'ОШИБКА {t}\n{error}')
+        # если слишком частые запросы (error 429) - подождать и начать заново, то подождать и начать заново
+        except APIError as e:
+            print('Ошибка 429')
+            print(e)
+            tries += 1
+            wait = 10 ** tries  # каждый раз ожидать экспоненциально больше
+            print(f'{tries} раз подряд, ждем {wait} сек')
+            time.sleep(wait)
+            continue
+
+        # если что-то еще пошло не так, записать это в таблице
+        except Exception:
+            error = traceback.format_exc()
+            print(error)
+            t = datetime.now().strftime("%d/%m, %H:%M:%S")
+            spreadsheet.worksheet(main_page).update(range_name='B2', values=f'ОШИБКА {t}\n{error}')
+            time.sleep(30)
+            break
+        break
