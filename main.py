@@ -26,7 +26,7 @@ schedule.every().day.at(t).do(pools)
 print('Сейчас', datetime.now().strftime("%H:%M:%S"))
 
 # поллинг каждые n секунд
-n = 2
+n = 20
 while 1:
     # проверить, не настало ли время
     schedule.run_pending()
