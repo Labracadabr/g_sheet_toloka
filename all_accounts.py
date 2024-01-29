@@ -10,6 +10,21 @@ from datetime import datetime
 from gspread.exceptions import APIError
 from pprint import pprint
 
+month_map = {
+    '1': 'Январь',
+    '2': 'Февраль',
+    '3': 'Март',
+    '4': 'Апрель',
+    '5': 'Май',
+    '6': 'Июнь',
+    '7': 'Июль',
+    '8': 'Август',
+    '9': 'Сентябрь',
+    '10': 'Октябрь',
+    '11': 'Ноябрь',
+    '12': 'Декабрь'
+}
+
 # GOOGLE API
 
 # данные для подключения к таблице
@@ -146,7 +161,7 @@ def read_account(row_num, account: str, page: str):
 def count_unread_msgs(client: toloka.TolokaClient) -> int:
     count = 0
     for message_thread in client.get_message_threads(folder=['INBOX', 'UNREAD'], batch_size=300):
-        message_thread
+        # message_thread
         count += 1
     return count
 
@@ -224,8 +239,6 @@ def count_funds(acc: str) -> dict:
     # сохранить инфу в словарь аккаунта
     for i in output_keys:
         projects_dict[i] = vars()[i]
-    # accounts[acc].setdefault('projects', projects_dict)
-
     return projects_dict
 
 
@@ -261,15 +274,14 @@ def read_project(project_id, account, acc_dict, toloka_client):
 
 
 # текущий месяц и год
-def month_now() -> str:  # > например "November 23"
+def month_year_now() -> str:  # > например "Ноябрь 2024"
     current_date = datetime.now()
-    month = current_date.strftime('%B')
-    return month
+    string = f'{month_map[str(current_date.month)]} {current_date.year}'
+    return string
 
 
-month_page = month_now()  # страница текущего месяца
+month_page = month_year_now()  # страница текущего месяца
 main_page = 'Main'  # главная страница
-
 
 # запустить всё
 def accounts_update():
@@ -299,7 +311,7 @@ def accounts_update():
             put_upd_time(page=month_page)
             print('ok')
 
-        # если слишком частые запросы (error 429) - подождать и начать заново, то подождать и начать заново
+        # если слишком частые запросы (error 429) - подождать и начать заново
         except APIError as e:
             print('Ошибка 429')
             print(e)
