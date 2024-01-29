@@ -1,6 +1,7 @@
 import time
 import traceback
 import gspread
+import pytz
 import toloka.client as toloka
 import datetime
 import requests
@@ -10,6 +11,8 @@ from datetime import datetime
 from gspread.exceptions import APIError
 from pprint import pprint
 
+
+# текущий месяц и год
 month_map = {
     '1': 'Январь',
     '2': 'Февраль',
@@ -24,6 +27,16 @@ month_map = {
     '11': 'Ноябрь',
     '12': 'Декабрь'
 }
+def month_year_now() -> str:  # > например "Ноябрь 2024"
+    current_date = datetime.now()
+    string = f'{month_map[str(current_date.month)]} {current_date.year}'
+    return string
+
+
+month_page = month_year_now()  # страница текущего месяца
+main_page = 'Main'  # главная страница
+tz = pytz.timezone("Etc/GMT-3")  # текст обновления в gmt+3
+
 
 # GOOGLE API
 
@@ -108,9 +121,9 @@ def merge_cells():
     print('mergeCells')
 
 
-# указать время обновления
+# указать время обновления по gmt+3
 def put_upd_time(page: str):
-    upd_text = f'Обновлено {datetime.now().strftime("%d/%m, %H:%M:%S")}'
+    upd_text = f'Обновлено {datetime.now(tz).strftime("%d/%m, %H:%M")} по мск'
     print(upd_text)
     spreadsheet.worksheet(page).update(range_name='A2', values=upd_text)
 
@@ -272,16 +285,6 @@ def read_project(project_id, account, acc_dict, toloka_client):
     project_data = [proj_name, create_date, account, spent, block, proj_url, client, manager, comment]
     google_append(page=month_page, data=project_data)
 
-
-# текущий месяц и год
-def month_year_now() -> str:  # > например "Ноябрь 2024"
-    current_date = datetime.now()
-    string = f'{month_map[str(current_date.month)]} {current_date.year}'
-    return string
-
-
-month_page = month_year_now()  # страница текущего месяца
-main_page = 'Main'  # главная страница
 
 # запустить всё
 def accounts_update():
