@@ -14,7 +14,7 @@ def gmt_shift(hour: int) -> str:
 
 
 # большой скрипт - запускать неск раз в день
-update_hours = [7, 15, 19]  # часы указать в gmt 0
+update_hours = [7, 15]  # часы указать в gmt 0
 for h in update_hours:
     t = f"{gmt_shift(h)}:05"
     schedule.every().day.at(t).do(accounts_update)
