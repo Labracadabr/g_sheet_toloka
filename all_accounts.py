@@ -145,7 +145,7 @@ def read_account(row_num, account: str, page: str):
     req_name = toloka_client.get_requester().public_name.values()
     print('\nАккаунт:', *req_name)
     balance = int(toloka_client.get_requester().balance)
-    msgs = count_unread_msgs(client=toloka_client)
+    msgs = count_unread_msgs(token=token)
     acc_dict = count_funds(acc=account)
 
     # финансы аккаунта
@@ -171,12 +171,18 @@ def read_account(row_num, account: str, page: str):
 
 
 # кол-во сообщений в аккаунте толоки
-def count_unread_msgs(client: toloka.TolokaClient) -> int:
-    count = 0
-    for message_thread in client.get_message_threads(folder=['INBOX', 'UNREAD'], batch_size=300):
-        # message_thread
-        count += 1
-    return count
+def count_unread_msgs(token: str) -> int:
+    url = 'https://platform.toloka.ai/api/message/status'
+    headers = {"Authorization": "OAuth %s" % token, "Content-Type": "application/JSON"}
+    r = requests.get(url, headers=headers)
+    unread = r.json().get('unread')
+
+    # # старый способ
+    # unread = 0
+    # for message_thread in client.get_message_threads(folder=['INBOX', 'UNREAD'], batch_size=300):
+    #     # message_thread
+    #     unread += 1
+    return unread
 
 
 # заморожено, потрачено, кол-во пулов и проектов
