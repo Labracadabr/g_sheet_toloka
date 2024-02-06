@@ -146,20 +146,14 @@ def read_account(row_num, account: str, page: str, token):
 
     # данные аккаунта
     if 'id' in account.lower() or 'td.pro5' in account.lower():
-        toloka_client = toloka.TolokaClient(token, 'PRODUCTION')
-        # req_name = toloka_client.get_requester().public_name.values()
-        # print('\nАккаунт:', *req_name)
+        toloka_client = toloka.TolokaClient(accounts[account]['token'], 'PRODUCTION')
         balance = int(toloka_client.get_requester().balance)
         msgs = 0
         for message_thread in toloka_client.get_message_threads(folder=['INBOX', 'UNREAD'], batch_size=300):
             msgs += 1
     else:
         r = requests.get(url=f'{base_url}/api/users/current/requester', headers=headers)
-        print(r.status_code)
         requester: dict = r.json()
-        # pprint(requester)
-        # req_name = requester.get('displayName')
-        # print('\nАккаунт:', *req_name.values())
         balance = int(requester.get('balance'))
         msgs = count_unread_msgs(account=account, base_url=base_url)
 
@@ -210,7 +204,9 @@ def count_funds(acc: str, base_url: str, token: str) -> dict:
 
     # запрос
     headers = {"Authorization": "OAuth %s" % token, "Content-Type": "application/JSON"}
-    url = f'{base_url}/api/billing/company/expense-log?from={from_date}&to={till_date}&timezone=%2B03%3A00&requesterId=company'
+    url = f'{base_url}/api/new/requester/finance/expense-log?from={from_date}&to={till_date}'
+    if acc == 'td.pro5':
+        url = f'{base_url}/api/billing/company/expense-log?from={from_date}&to={till_date}'
     print('url', url)
 
     # ответ
@@ -233,7 +229,10 @@ def count_funds(acc: str, base_url: str, token: str) -> dict:
 
         # каждый assignment за эту дату
         for assignment_bill in date_bill['assignments']:
-            requester_id = assignment_bill['requesterId']
+            if acc == 'td.pro5':
+                requester_id = assignment_bill['requesterId']
+            else:
+                requester_id = assignment_bill['requester']['id']
 
             # если проект относится не к самому аккаунту, а к родственному, то не учитывать
             if requester_id != accounts[acc]['id']:
@@ -245,8 +244,12 @@ def count_funds(acc: str, base_url: str, token: str) -> dict:
             projects_dict.setdefault(project_id, {})
 
             # потрачено и заморожено
-            spent = float(assignment_bill['spent'] + assignment_bill['fee'])
-            block = float(assignment_bill['blockedSpent'] + assignment_bill['blockedFee'])
+            if acc == 'td.pro5':
+                spent = float(assignment_bill['spent'] + assignment_bill['fee'])
+                block = float(assignment_bill['blockedSpent'] + assignment_bill['blockedFee'])
+            else:
+                spent = float(assignment_bill['totalIncome'] + assignment_bill['tolokaFee'])
+                block = float(assignment_bill['blockedIncome'] + assignment_bill['blockedTolokaFee'])
             # spent = float(Decimal(assignment_bill['spent'] + assignment_bill['fee']).quantize(Decimal("1.00")))
             # block = float(
             #     Decimal(assignment_bill['blockedSpent'] + assignment_bill['blockedFee']).quantize(Decimal("1.00")))
@@ -326,11 +329,10 @@ def accounts_update():
             # собрать и внести данные каждого аккаунта в гугл таблицы
             for row_num, account in enumerate(accounts, start=3):
                 # токен
-                if 'td.pro' in account:
-                    # для get запроса у дочерних акков нужен не собственный токен, а токен родительского акка
+                token = accounts[account]['token']
+                if 'td.pro5' in account:
+                    # для запросов у дочерних акков нужен не собственный токен, а токен родительского акка
                     token = accounts['td.pro']['token']
-                else:
-                    token = accounts[account]['token']
 
                 read_account(row_num, account, page=main_page, token=token)
 
@@ -358,3 +360,4 @@ def accounts_update():
             time.sleep(30)
             break
         break
+accounts_update()
