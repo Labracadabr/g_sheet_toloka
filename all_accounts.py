@@ -11,7 +11,6 @@ from datetime import datetime
 from gspread.exceptions import APIError
 from pprint import pprint
 
-
 # текущий месяц и год
 month_map = {
     '1': 'Январь',
@@ -27,6 +26,8 @@ month_map = {
     '11': 'Ноябрь',
     '12': 'Декабрь'
 }
+
+
 def month_year_now() -> str:  # > например "Ноябрь 2024"
     current_date = datetime.now()
     string = f'{month_map[str(current_date.month)]} {current_date.year}'
@@ -36,7 +37,6 @@ def month_year_now() -> str:  # > например "Ноябрь 2024"
 month_page = month_year_now()  # страница текущего месяца
 main_page = 'Main'  # главная страница
 tz = pytz.timezone("Etc/GMT-3")  # текст обновления в gmt+3
-
 
 # GOOGLE API
 
@@ -83,23 +83,20 @@ def clone_page(new_name: str):
 
 # что делать каждое 1ое число в листе main
 def new_month_action():
-    # вставить новые строки
-    insert_rows()
-    # объединить 3 ячейки
-    merge_cells()
-    # вписать в них новый месяц
-    spreadsheet.worksheet(main_page).update(range_name='D2', values=month_page)
+    insert_empty_rows()  # вставить новые строки
+    merge_cells()  # объединить 3 ячейки для назв месяца
+    spreadsheet.worksheet(main_page).update(range_name='D2', values=month_page)  # вписать в них новый месяц
 
 
-def insert_rows():
+def insert_empty_rows():
     start = 1
     end = len(accounts) + 4  # = 8
     # отправить insertDimension запрос
     body = {"requests": [{"insertDimension": {"range": {
-            "sheetId": 0,
-            "dimension": "ROWS",
-            "startIndex": start,
-            "endIndex": end}}}, ], }
+        "sheetId": 0,
+        "dimension": "ROWS",
+        "startIndex": start,
+        "endIndex": end}}}, ], }
     spreadsheet.batch_update(body)
     print('Вставлены строки с', start, 'по', end)
 
@@ -112,11 +109,11 @@ def update_alert(page):
 def merge_cells():
     # отправить mergeCells запрос
     body = {"requests": [{"mergeCells": {"range": {
-            "sheetId": 0,
-            "startRowIndex": 1,
-            "endRowIndex": 2,
-            "startColumnIndex": 3,
-            "endColumnIndex": 7, }, "mergeType": "MERGE_ALL"}}, ], }
+        "sheetId": 0,
+        "startRowIndex": 1,
+        "endRowIndex": 2,
+        "startColumnIndex": 3,
+        "endColumnIndex": 7, }, "mergeType": "MERGE_ALL"}}, ], }
     spreadsheet.batch_update(body)
     print('mergeCells')
 
@@ -138,17 +135,36 @@ def google_append(page: str, data: list):
 # TOLOKA API
 
 # собрать все данные с аккаунта
-def read_account(row_num, account: str, page: str):
+def read_account(row_num, account: str, page: str, token):
+    print('read_account', account)
+    # у толоки и яндекса разный домен
+    if 'yandex' in account.lower():
+        base_url = 'https://tasks.yandex.ru'
+    else:
+        base_url = 'https://platform.toloka.ai'
+    headers = {"Authorization": "OAuth %s" % accounts[account]['token'], "Content-Type": "application/JSON"}
+
     # данные аккаунта
-    token = accounts[account]['token']
-    toloka_client = toloka.TolokaClient(token, 'PRODUCTION')
-    req_name = toloka_client.get_requester().public_name.values()
-    print('\nАккаунт:', *req_name)
-    balance = int(toloka_client.get_requester().balance)
-    msgs = count_unread_msgs(token=token)
-    acc_dict = count_funds(acc=account)
+    if 'id' in account.lower() or 'td.pro5' in account.lower():
+        toloka_client = toloka.TolokaClient(token, 'PRODUCTION')
+        # req_name = toloka_client.get_requester().public_name.values()
+        # print('\nАккаунт:', *req_name)
+        balance = int(toloka_client.get_requester().balance)
+        msgs = 0
+        for message_thread in toloka_client.get_message_threads(folder=['INBOX', 'UNREAD'], batch_size=300):
+            msgs += 1
+    else:
+        r = requests.get(url=f'{base_url}/api/users/current/requester', headers=headers)
+        print(r.status_code)
+        requester: dict = r.json()
+        # pprint(requester)
+        # req_name = requester.get('displayName')
+        # print('\nАккаунт:', *req_name.values())
+        balance = int(requester.get('balance'))
+        msgs = count_unread_msgs(account=account, base_url=base_url)
 
     # финансы аккаунта
+    acc_dict = count_funds(acc=account, base_url=base_url, token=token)
     spent = acc_dict.get('total_spent')
     block = acc_dict.get('total_block')
 
@@ -167,12 +183,13 @@ def read_account(row_num, account: str, page: str):
         # тут читаем только словари
         if not isinstance(acc_dict[project_id], dict):
             continue
-        read_project(project_id, account, acc_dict, toloka_client)
+        read_project(project_id, account, acc_dict, base_url, token)
 
 
 # кол-во сообщений в аккаунте толоки
-def count_unread_msgs(token: str) -> int:
-    url = 'https://platform.toloka.ai/api/message/status'
+def count_unread_msgs(account: str, base_url: str) -> int:
+    token = accounts[account]['token']
+    url = f'{base_url}/api/message/status'
     headers = {"Authorization": "OAuth %s" % token, "Content-Type": "application/JSON"}
     r = requests.get(url, headers=headers)
     unread = r.json().get('unread')
@@ -186,22 +203,15 @@ def count_unread_msgs(token: str) -> int:
 
 
 # заморожено, потрачено, кол-во пулов и проектов
-def count_funds(acc: str) -> dict:
-    # токен
-    if 'td.pro' in acc:
-        # для get запроса у дочерних акков нужен не собственный токен, а токен родительского акка
-        token = accounts['td.pro']['token']
-    else:
-        token = accounts[acc]['token']
-
+def count_funds(acc: str, base_url: str, token: str) -> dict:
     # период трат
-    first_day_this_month = datetime.today().replace(day=1).strftime('%Y-%m-%d')
-    from_date = first_day_this_month  # включительно. тут мне нужно 1ое число текущего месяца
+    from_date = datetime.today().replace(day=1).strftime('%Y-%m-%d')  # включительно. тут 1ое число текущего месяца
     till_date = '3023-11-30'  # не включительно. если указать дату из будущего, то поиск будет до сейчас, поэтому 3023
 
     # запрос
     headers = {"Authorization": "OAuth %s" % token, "Content-Type": "application/JSON"}
-    url = f'https://platform.toloka.ai/api/billing/company/expense-log?from={from_date}&to={till_date}&timezone=%2B03%3A00&requesterId=company'
+    url = f'{base_url}/api/billing/company/expense-log?from={from_date}&to={till_date}&timezone=%2B03%3A00&requesterId=company'
+    print('url', url)
 
     # ответ
     response = requests.get(url, headers=headers)
@@ -265,23 +275,25 @@ def count_funds(acc: str) -> dict:
 def read_comment(comment: str) -> tuple:
     try:  # разделить коммент на 3 части по символу # и убрать пробелы по краям
         comment, client, manager = map(lambda x: x.strip(), comment.split('#'))
-
     except ValueError:  # если разделителей не два, то client и manager останутся пустые, а comment не изменится
         client = manager = ''
-
     return comment, client, manager
 
 
 # данные с проекта
-def read_project(project_id, account, acc_dict, toloka_client):
+def read_project(project_id, account, acc_dict, base_url: str, token: str):
+    headers = {"Authorization": "OAuth %s" % token, "Content-Type": "application/JSON"}
+    r = requests.get(url=f'{base_url}/api/v1/projects/{project_id}', headers=headers)
+
     # данные проекта
-    project = toloka_client.get_project(project_id=project_id)
-    proj_url = f'https://platform.toloka.ai/requester/project/{project_id}'
-    create_date = str(project.created.date())
-    proj_name = project.public_name
+    # project = toloka_client.get_project(project_id=project_id)
+    project = r.json()
+    proj_url = f'{base_url}/requester/project/{project_id}'
+    create_date = str(project['created'].split('T')[0])
+    proj_name = project['public_name']
 
     # данные из private_comment. если в поле нет разделителя, то client и manager будут пустые
-    comment, client, manager = read_comment(project.private_comment)
+    comment, client, manager = read_comment(project['private_comment'])
 
     # финансы проекта
     spent = acc_dict[project_id].get('spent')
@@ -313,7 +325,14 @@ def accounts_update():
 
             # собрать и внести данные каждого аккаунта в гугл таблицы
             for row_num, account in enumerate(accounts, start=3):
-                read_account(row_num, account, page=main_page)
+                # токен
+                if 'td.pro' in account:
+                    # для get запроса у дочерних акков нужен не собственный токен, а токен родительского акка
+                    token = accounts['td.pro']['token']
+                else:
+                    token = accounts[account]['token']
+
+                read_account(row_num, account, page=main_page, token=token)
 
             # вписать время последнего обновления
             put_upd_time(page=main_page)
