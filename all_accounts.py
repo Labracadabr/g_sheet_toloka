@@ -6,6 +6,8 @@ import toloka.client as toloka
 import datetime
 import requests
 import json
+from gspread import Cell
+
 from acc_secret_info import accounts
 from datetime import datetime
 from gspread.exceptions import APIError
@@ -168,9 +170,20 @@ def read_account(row_num, account: str, page: str, token):
 
     # внести строку в главный лист таблицы
     acc_data = [account, msgs, balance, spent, block, projects, pools]
+    # приготовить список с объектами ячеек
+    cell_list = []
     for i, val in enumerate(acc_data, start=1):
-        print(f'row: {row_num}, col: {i}, val: {val}')
-        spreadsheet.worksheet(page).update_cell(row=row_num, col=i, value=val)
+        cell_list.append(Cell(row=row_num, col=i, value=val))
+
+    # обновить все разом
+    while True:
+        try:
+            spreadsheet.worksheet(page).update_cells(cell_list)
+            break
+        except APIError as e:
+            print('\ngoogle error', e)
+            time.sleep(30)
+    print(f'обновлено {len(acc_data)} ячеек:', acc_data)
 
     # просмотреть каждый активный проект в аккаунте
     for project_id in acc_dict:
@@ -180,7 +193,7 @@ def read_account(row_num, account: str, page: str, token):
         read_project(project_id, account, acc_dict, base_url, token)
 
 
-# кол-во сообщений в аккаунте толоки
+# кол-во сообщений в аккаунте
 def count_unread_msgs(account: str, base_url: str) -> int:
     token = accounts[account]['token']
     url = f'{base_url}/api/message/status'
@@ -360,4 +373,6 @@ def accounts_update():
             time.sleep(30)
             break
         break
+
+
 accounts_update()
