@@ -40,4 +40,10 @@ n = 20
 while 1:
     # проверить, не настало ли время
     schedule.run_pending()
+
+    nxt = schedule.next_run()
+    now = datetime.now()
+    dif = nxt-now
+    print('\rслед действие через', int(dif.total_seconds()), 'сек', end='')
+
     time.sleep(n)
