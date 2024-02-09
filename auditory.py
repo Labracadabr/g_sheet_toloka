@@ -149,10 +149,10 @@ def hour_update():
     now = str(datetime.now(tz).strftime("%d/%m, %H:%M"))
 
     # страны
-    # data = asyncio.run(auditory_update(field=countries, by='country'))
-    # insert_empty_row(page=hour_country)
-    # data = [now] + data
-    # insert_data_row(data=data, row=2, page=hour_country)
+    data = asyncio.run(auditory_update(field=countries, by='country'))
+    insert_empty_row(page=hour_country)
+    data = [now] + data
+    insert_data_row(data=data, row=2, page=hour_country)
 
     # языки
     data1 = asyncio.run(auditory_update(field=lang_skills, by="skill"))  # подтвержденные тестом
