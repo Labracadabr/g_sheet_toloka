@@ -375,4 +375,6 @@ def accounts_update():
         break
 
 
-accounts_update()
+if __name__ == '__main__':
+    accounts_update()
+
