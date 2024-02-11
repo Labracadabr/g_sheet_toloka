@@ -21,7 +21,7 @@ def pools():
     print('\nСтарт')
     # Перебор аккаунтов
     for account in accounts:
-        if 'id' in account.lower():
+        if 'id' in account.lower() or 'yandex' in account.lower():
             print('skip', account)
             continue  # тут не все акки нужны
 
