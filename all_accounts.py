@@ -8,9 +8,9 @@ import requests
 import json
 from gspread import Cell
 
+from common import *
 from acc_secret_info import accounts
 from datetime import datetime
-from gspread.exceptions import APIError
 from pprint import pprint
 
 # текущий месяц и год
@@ -38,18 +38,16 @@ def month_year_now() -> str:  # > например "Ноябрь 2024"
 
 month_page = month_year_now()  # страница текущего месяца
 main_page = 'Main'  # главная страница
-tz = pytz.timezone("Etc/GMT-3")  # текст обновления в gmt+3
 
 # GOOGLE API
 
 # данные для подключения к таблице
-service_file = 'token.json'
-gc = gspread.service_account(filename=service_file)
 sheet_url = 'https://docs.google.com/spreadsheets/d/1_O2Ran9qpu_eXlQ0MuqnGYa5PS2IMQVT1qWgLobNaDE/edit#gid=0'
 spreadsheet = gc.open_by_url(sheet_url)
 
 
 # стереть строки в таблице
+@api_decorator
 def clear_rows(page: str):
     try:  # проверить есть ли такая страница
         sheet = spreadsheet.worksheet(page)
@@ -64,6 +62,7 @@ def clear_rows(page: str):
 
 
 # клонировать лист по шаблону - втч текст, размер таблицы и цвета ячеек
+@api_decorator
 def clone_page(new_name: str):
     print('Создание лист', new_name)
     # создать новый лист по шаблону
@@ -84,12 +83,14 @@ def clone_page(new_name: str):
 
 
 # что делать каждое 1ое число в листе main
+@api_decorator
 def new_month_action():
     insert_empty_rows()  # вставить новые строки
     merge_cells()  # объединить 3 ячейки для назв месяца
     spreadsheet.worksheet(main_page).update(range_name='D2', values=month_page)  # вписать в них новый месяц
 
 
+@api_decorator
 def insert_empty_rows():
     start = 1
     end = len(accounts) + 4  # = 8
@@ -103,11 +104,13 @@ def insert_empty_rows():
     print('Вставлены строки с', start, 'по', end)
 
 
+@api_decorator
 def update_alert(page):
     sheet = spreadsheet.worksheet(page)
     sheet.update(range_name='A2', values='Обновление в процессе'.upper())
 
 
+@api_decorator
 def merge_cells():
     # отправить mergeCells запрос
     body = {"requests": [{"mergeCells": {"range": {
@@ -121,6 +124,7 @@ def merge_cells():
 
 
 # указать время обновления по gmt+3
+@api_decorator
 def put_upd_time(page: str):
     upd_text = f'Обновлено {datetime.now(tz).strftime("%d/%m, %H:%M")} по мск'
     print(upd_text)
@@ -128,6 +132,7 @@ def put_upd_time(page: str):
 
 
 # добавить строку в конец таблицы
+@api_decorator
 def google_append(page: str, data: list):
     print(f'Внесено в лист {page}:')
     print(data)
@@ -180,7 +185,7 @@ def read_account(row_num, account: str, page: str, token):
         try:
             spreadsheet.worksheet(page).update_cells(cell_list)
             break
-        except APIError as e:
+        except gspread.exceptions.APIError as e:
             print('\ngoogle error', e)
             time.sleep(30)
     print(f'обновлено {len(acc_data)} ячеек:', acc_data)
@@ -322,7 +327,6 @@ def read_project(project_id, account, acc_dict, base_url: str, token: str):
 
 # запустить всё
 def accounts_update():
-    tries = 0
     while True:
         try:
             print('\nstart')
@@ -353,16 +357,6 @@ def accounts_update():
             put_upd_time(page=main_page)
             put_upd_time(page=month_page)
             print('ok')
-
-        # если слишком частые запросы (error 429) - подождать и начать заново
-        except APIError as e:
-            print('Ошибка 429')
-            print(e)
-            tries += 1
-            wait = 10 ** tries  # каждый раз ожидать экспоненциально больше
-            print(f'{tries} раз подряд, ждем {wait} сек')
-            time.sleep(wait)
-            continue
 
         # если что-то еще пошло не так, записать это в таблице
         except Exception:

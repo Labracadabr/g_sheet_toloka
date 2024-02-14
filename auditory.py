@@ -1,14 +1,13 @@
-print('launching')
 import asyncio
 import aiohttp
-import pytz
 from pprint import pprint
-import gspread
 import time
 from datetime import datetime
 import schedule
 import platform
 from gspread import Cell
+
+from common import *
 from acc_secret_info import accounts
 if platform.system() == 'Windows':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -18,12 +17,7 @@ token = accounts['td.pro']['token']
 # token = accounts['Yandex']['token']
 HEADERS = {"Authorization": "OAuth %s" % token, "Content-Type": "application/JSON"}
 
-# текст обновления в gmt+3
-tz = pytz.timezone("Etc/GMT-3")
-
 # данные для подключения к таблице
-service_file = 'token.json'
-gc = gspread.service_account(filename=service_file)
 sheet_url = 'https://docs.google.com/spreadsheets/d/148B3MkcYPsDml1t4U94AitewazaIAnrC-yZK6mOtLhU/edit#gid=1414102686'
 spreadsheet = gc.open_by_url(sheet_url)
 hour_country = 'Hour country'
@@ -75,6 +69,7 @@ languages = {
 }
 
 # вставить пустую строку в начале таблицы
+@api_decorator
 def insert_empty_row(page: str):
     # отправить insertDimension запрос
     body = {"requests": [{"insertDimension": {"range": {
@@ -86,6 +81,7 @@ def insert_empty_row(page: str):
     print('Вставлена пустая строка')
 
 
+@api_decorator
 def insert_data_row(data: list, page: str, row: int):
     # приготовить список с объектами ячеек
     cell_list = []
@@ -93,13 +89,7 @@ def insert_data_row(data: list, page: str, row: int):
         cell_list.append(Cell(row=row, col=i, value=val))
 
     # обновить все разом
-    while True:
-        try:
-            spreadsheet.worksheet(page).update_cells(cell_list)
-            break
-        except Exception as e:
-            print('\ngoogle error', e)
-            time.sleep(1)
+    spreadsheet.worksheet(page).update_cells(cell_list)
     print('обновлено ячеек:', len(data))
 
 
@@ -169,7 +159,13 @@ def daily_max(col_amount: int, from_page: str, to_page: str):
     field = {i: 0 for i in range(col_amount)}
 
     # весь лист за посл 24 часа
-    last_24h_data = spreadsheet.worksheet(from_page).range(2, 2, 25, col_amount + 1)
+    while 1:
+        try:
+            last_24h_data = spreadsheet.worksheet(from_page).range(2, 2, 25, col_amount + 1)
+            break
+        except gspread.exceptions.APIError as e:
+            print('ОШИБКА daily_max', e)
+            time.sleep(5)
     print('прочитано ячеек', len(last_24h_data))
 
     for i, col in enumerate(field):
