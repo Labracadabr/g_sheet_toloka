@@ -78,34 +78,40 @@ async def ping_auditory(by: str, value: str, session) -> int:
     project = 1482 if 'yandex' in base_url else 150010
     payload = {"projectId": project, "adultContent": False, "filter": {"or": filter_by[by]}}
 
-    # несколько одинаковых запросов
-    responses = [0 for _ in range(3)]
-    for r in responses:
-        async with session.post(f'{base_url}/api/adjuster/adjustments/', headers=HEADERS, json=payload) as response:
-            if r != len(responses) - 1:  # пауза между запросами
-                await asyncio.sleep(30)
-            if response.status == 200:
-                data = await response.json()
-                responses[r] = data['parameters']['value']
-            # если ответ плохой
-            else:
-                print(f'{response.status} error for {value}, r', r)
-                responses[r] = 0
+    # запрос
+    async with session.post(f'{base_url}/api/adjuster/adjustments/', headers=HEADERS, json=payload) as response:
+        # print('response', value, payload)
+        if response.status == 200:
+            data = await response.json()
+            return int(data['parameters']['value'])
+        # если ответ плохой
+        else:
+            print(f'{response.status} error for {value}')
+            return 0
 
 
 async def auditory_update(by: str, field: list) -> list:
     # сгенерировать пустой словарь длиной в число колонок
     field = {i: 0 for i in field}
 
-async def auditory_update(by: str, field: dict) -> list:
-    print('checking by', by)
-    async with aiohttp.ClientSession() as session:
-        # tasks = [detect_auditory(base_url=base_url, by='languages', value=i, session=session) for i in field]
-        tasks = [ping_auditory(by=by, value=i, session=session) for i in field]
-        results = await asyncio.gather(*tasks)
-        for item, result in zip(field.keys(), results):
-            field[item] = result
-    # pprint(countries)
+    # послать 3 одинаковые асинхронные серии запросов
+    for req in range(1, 4):
+        if req != 1:  # задержка между сериями
+            await asyncio.sleep(10)
+
+        print(req, 'check by', by)
+        async with aiohttp.ClientSession() as session:
+            tasks = [ping_auditory(by=by, value=i, session=session) for i in field]
+            results = await asyncio.gather(*tasks)
+            print('mid results:', results)
+
+            # сохранить значение на каждую колонку
+            for item, result in zip(field.keys(), results):
+                # взять макс из двух - нового и старого значения (на случай ошибок 500, когда в ответе придет 0)
+                field[item] = max(result, field[item])
+
+    print('final results:', field)
+    print()
     return list(field.values())
 
 
