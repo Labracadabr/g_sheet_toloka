@@ -26,25 +26,8 @@ day_country = 'Day country'
 day_lang = 'Day language'
 
 # аргументы запросов
-countries = {'RU': 0, 'KE': 0, 'PK': 0, 'NG': 0, 'BR': 0, 'IN': 0, 'TR': 0, 'UA': 0, 'ET': 0, 'VN': 0, 'BY': 0,
-             'KZ': 0, 'PH': 0, 'ID': 0, 'MA': 0, 'VE': 0, 'UZ': 0, 'CO': 0, 'MX': 0, 'US': 0, 'FR': 0, 'ZA': 0,
-             'DZ': 0, 'LK': 0, 'EG': 0, 'AR': 0, 'MG': 0, 'BD': 0, 'PE': 0, 'CI': 0, 'GH': 0, 'CN': 0, 'TN': 0,
-             'MZ': 0, 'CM': 0, 'AE': 0, 'MD': 0, 'ES': 0, 'EC': 0, 'PL': 0, 'ZM': 0, 'SA': 0, 'DO': 0, 'MM': 0,
-             'MY': 0, 'PT': 0, 'BF': 0, 'AM': 0, 'SN': 0, 'DK': 0}
-# countries = {'RU': 0, 'KE': 0, 'PK': 0, 'NG': 0, 'BR': 0, 'IN': 0, 'TR': 0, 'UA': 0, 'ET': 0, 'VN': 0, 'BY': 0, 'KZ': 0,
-#              'PH': 0, 'ID': 0, 'MA': 0, 'VE': 0, 'UZ': 0, 'CO': 0, 'MX': 0, 'US': 0, 'FR': 0, 'ZA': 0, 'DZ': 0, 'LK': 0,
-#              'EG': 0, 'AR': 0, 'MG': 0, 'BD': 0, 'PE': 0, 'CI': 0, 'GH': 0, 'CN': 0, 'TN': 0, 'MZ': 0, 'CM': 0, 'AE': 0,
-#              'MD': 0, 'ES': 0, 'EC': 0, 'PL': 0, 'ZM': 0, 'SA': 0, 'DO': 0, 'MM': 0, 'MY': 0, 'PT': 0, 'BF': 0, 'AM': 0,
-#              'SN': 0, 'DK': 0, 'JO': 0, 'AZ': 0, 'CD': 0, 'KG': 0, 'TG': 0, 'GB': 0, 'DE': 0, 'RO': 0, 'RS': 0, 'CA': 0,
-#              'CL': 0, 'SV': 0, 'IT': 0, 'JM': 0, 'TJ': 0, 'UG': 0, 'GE': 0, 'GT': 0, 'ZW': 0, 'BJ': 0, 'CR': 0, 'BG': 0,
-#              'HT': 0, 'BO': 0, 'BW': 0, 'MW': 0, 'ML': 0, 'NP': 0, 'NL': 0, 'PA': 0, 'AU': 0, 'JP': 0, 'TZ': 0, 'UY': 0,
-#              'AO': 0, 'CG': 0, 'FI': 0, 'GA': 0, 'GR': 0, 'IQ': 0, 'LV': 0, 'LT': 0, 'NI': 0, 'SE': 0, 'AT': 0, 'MK': 0,
-#              'TH': 0, 'BA': 0, 'GN': 0, 'HU': 0, 'IL': 0, 'RW': 0, 'SL': 0, 'TT': 0, 'TM': 0, 'YE': 0, 'AL': 0, 'BH': 0,
-#              'BE': 0, 'TD': 0, 'HN': 0, 'IE': 0, 'LB': 0, 'PS': 0, 'KR': 0, 'TW': 0, 'KH': 0, 'HR': 0, 'PF': 0, 'IR': 0,
-#              'MU': 0, 'NE': 0, 'OM': 0, 'PY': 0, 'QA': 0, 'BT': 0, 'BN': 0, 'BI': 0, 'CZ': 0, 'DJ': 0, 'EE': 0, 'KW': 0,
-#              'LS': 0, 'LY': 0, 'MQ': 0, 'NA': 0, 'PR': 0, 'VC': 0, 'SK': 0, 'SZ': 0, 'SY': 0, 'AD': 0, 'CU': 0, 'CY': 0,
-#              'GF': 0, 'MR': 0, 'NZ': 0, 'NO': 0, 'SG': 0, 'SR': 0
-#              }
+# countries = ['RU', 'KE', 'PK', 'NG', 'BR', 'IN', 'TR', 'UA', 'ET', 'VN', 'BY', 'KZ', 'PH', 'ID', 'MA', 'VE', 'UZ', 'CO', 'MX', 'US', 'FR', 'ZA', 'DZ', 'LK', 'EG', 'AR', 'MG', 'BD', 'PE', 'CI', 'GH', 'CN', 'TN', 'MZ', 'CM', 'AE', 'MD', 'ES', 'EC', 'PL', 'ZM', 'SA', 'DO', 'MM', 'MY', 'PT', 'BF', 'AM', 'SN', 'DK']
+countries = ['RU', 'KE', 'PK', 'NG', 'BR', 'IN', 'TR', 'UA', 'ET', 'VN', 'BY', 'KZ', 'PH', 'ID', 'MA', 'VE', 'UZ', 'CO', 'MX', 'US', 'FR', 'ZA', 'DZ', 'LK', 'EG', 'AR', 'MG', 'BD', 'PE', 'CI', 'GH', 'CN', 'TN', 'MZ', 'CM', 'AE', 'MD', 'ES', 'EC', 'PL', 'ZM', 'SA', 'DO', 'MM', 'MY', 'PT', 'BF', 'AM', 'SN', 'DK', 'JO', 'AZ', 'CD', 'KG', 'TG', 'GB', 'DE', 'RO', 'RS', 'CA', 'CL', 'SV', 'IT', 'JM', 'TJ', 'UG', 'GE', 'GT', 'ZW', 'BJ', 'CR', 'BG', 'HT', 'BO', 'BW', 'MW', 'ML', 'NP', 'NL', 'PA', 'AU', 'JP', 'TZ', 'UY', 'AO', 'CG', 'FI', 'GA', 'GR', 'IQ', 'LV', 'LT', 'NI', 'SE', 'AT', 'MK', 'TH', 'BA', 'GN', 'HU', 'IL', 'RW', 'SL', 'TT', 'TM', 'YE', 'AL', 'BH', 'BE', 'TD', 'HN', 'IE', 'LB', 'PS', 'KR', 'TW', 'KH', 'HR', 'PF', 'IR', 'MU', 'NE', 'OM', 'PY', 'QA', 'BT', 'BN', 'BI', 'CZ', 'DJ', 'EE', 'KW', 'LS', 'LY', 'MQ', 'NA', 'PR', 'VC', 'SK', 'SZ', 'SY', 'AD', 'CU', 'CY', 'GF', 'MR', 'NZ', 'NO', 'SG', 'SR']
 lang_skills = {
     "EN": "26366",
     "RU": "26296",
@@ -56,17 +39,7 @@ lang_skills = {
     "PT": "26714",
     "JA": "26513",
     "ID": "39821", }
-languages = {
-    'EN': 0, 'RU': 0, 'ES': 0, 'DE': 0, 'FR': 0, 'PT': 0, 'JA': 0, 'AR': 0, 'UK': 0, 'TR': 0, 'IT': 0, 'NL': 0,
-    'PL': 0, 'ID': 0, 'SW': 0, 'SV': 0, 'ZH': 0, 'HI': 0, 'BE': 0, 'UR': 0, 'KK': 0, 'TL': 0, 'TT': 0, 'UZ': 0,
-    'KI': 0, 'BN': 0, 'KO': 0, 'VI': 0, 'YO': 0, 'AM': 0, 'AZ': 0, 'IG': 0, 'EL': 0, 'HE': 0, 'BA': 0, 'RO': 0,
-    'TA': 0, 'MS': 0, 'ZU': 0, 'LA': 0, 'MR': 0, 'SR': 0, 'CS': 0, 'XH': 0, 'AF': 0, 'KA': 0, 'KY': 0, 'ML': 0,
-    'SI': 0, 'BG': 0, 'JV': 0, 'HA': 0, 'PA': 0, 'CE': 0, 'CV': 0, 'TG': 0, 'EO': 0, 'ST': 0, 'TE': 0, 'TK': 0,
-    'HY': 0, 'HR': 0, 'FI': 0, 'GU': 0, 'HU': 0, 'PS': 0, 'KN': 0, 'WO': 0, 'DA': 0, 'OM': 0, 'TH': 0, 'AK': 0,
-    'BS': 0, 'CA': 0, 'ET': 0, 'GA': 0, 'NO': 0, 'SK': 0, 'SU': 0, 'AB': 0, 'MY': 0, 'NY': 0, 'CU': 0, 'FF': 0,
-    'LG': 0, 'LV': 0, 'LN': 0, 'OR': 0, 'FA': 0, 'TS': 0, 'AS': 0, 'AV': 0, 'BM': 0, 'HT': 0, 'IS': 0, 'IE': 0,
-    'KU': 0, 'LT': 0, 'NE': 0, 'OS': 0
-}
+languages = ['EN', 'RU', 'ES', 'DE', 'FR', 'PT', 'JA', 'AR', 'UK', 'TR', 'IT', 'NL', 'PL', 'ID', 'SW', 'SV', 'ZH', 'HI', 'BE', 'UR', 'KK', 'TL', 'TT', 'UZ', 'KI', 'BN', 'KO', 'VI', 'YO', 'AM', 'AZ', 'IG', 'EL', 'HE', 'BA', 'RO', 'TA', 'MS', 'ZU', 'LA', 'MR', 'SR', 'CS', 'XH', 'AF', 'KA', 'KY', 'ML', 'SI', 'BG', 'JV', 'HA', 'PA', 'CE', 'CV', 'TG', 'EO', 'ST', 'TE', 'TK', 'HY', 'HR', 'FI', 'GU', 'HU', 'PS', 'KN', 'WO', 'DA', 'OM', 'TH', 'AK', 'BS', 'CA', 'ET', 'GA', 'NO', 'SK', 'SU', 'AB', 'MY', 'NY', 'CU', 'FF', 'LG', 'LV', 'LN', 'OR', 'FA', 'TS', 'AS', 'AV', 'BM', 'HT', 'IS', 'IE', 'KU', 'LT', 'NE', 'OS']
 
 # вставить пустую строку в начале таблицы
 @api_decorator
@@ -119,9 +92,10 @@ async def ping_auditory(by: str, value: str, session) -> int:
                 print(f'{response.status} error for {value}, r', r)
                 responses[r] = 0
 
-    # брать макс из всех ответов
-    return max(responses)
 
+async def auditory_update(by: str, field: list) -> list:
+    # сгенерировать пустой словарь длиной в число колонок
+    field = {i: 0 for i in field}
 
 async def auditory_update(by: str, field: dict) -> list:
     print('checking by', by)
@@ -140,15 +114,15 @@ def hour_update():
 
     # страны
     data = asyncio.run(auditory_update(field=countries, by='country'))
-    insert_empty_row(page=hour_country)
     data = [now] + data
+    insert_empty_row(page=hour_country)
     insert_data_row(data=data, row=2, page=hour_country)
 
     # языки
-    data1 = asyncio.run(auditory_update(field=lang_skills, by="skill"))  # подтвержденные тестом
+    data1 = asyncio.run(auditory_update(field=list(lang_skills.keys()), by="skill"))  # подтвержденные тестом
     data2 = asyncio.run(auditory_update(field=languages, by="languages"))  # все
-    insert_empty_row(page=hour_lang)
     data = [now] + data1 + data2
+    insert_empty_row(page=hour_lang)
     insert_data_row(data=data, row=2, page=hour_lang)
 
 
