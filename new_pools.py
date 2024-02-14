@@ -54,8 +54,12 @@ def pools():
         # аппенд в таблицу
         data: list = [date_str, today_pools, balance, '?']
         print(data)
-        spreadsheet.worksheet_by_title(account).append_table(values=data)
-        print('Строка добавлена в', account)
-        print()
+        try:
+            spreadsheet.worksheet_by_title(account).append_table(values=data)
+            print('Строка добавлена в', account)
+            print()
+        except Exception as e:
+            print(f'Ошибка таблицы для {account}:', e)
+            print()
 
     print('✅ Внесено за', date_str)
