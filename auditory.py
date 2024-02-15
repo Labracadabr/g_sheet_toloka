@@ -20,6 +20,7 @@ HEADERS = {"Authorization": "OAuth %s" % token, "Content-Type": "application/JSO
 # данные для подключения к таблице
 sheet_url = 'https://docs.google.com/spreadsheets/d/148B3MkcYPsDml1t4U94AitewazaIAnrC-yZK6mOtLhU/edit#gid=1414102686'
 spreadsheet = gc.open_by_url(sheet_url)
+# названия листов
 hour_country = 'Hour country'
 hour_lang = 'Hour language'
 day_country = 'Day country'
@@ -149,12 +150,16 @@ def daily_max(col_amount: int, from_page: str, to_page: str):
     print('прочитано ячеек', len(last_24h_data))
 
     for i, col in enumerate(field):
-        # 24 верхние ячейки одной страны
-        col_today = [last_24h_data[c] for c in range(i, len(last_24h_data), col_amount)]
+        try:
+            # 24 верхние ячейки одной страны
+            col_today = [last_24h_data[c] for c in range(i, len(last_24h_data), col_amount)]
 
-        # макс из этих 24 шт
-        max_today = max([int(cell.value) for cell in col_today])
-        field[col] = max_today
+            # макс из этих 24 шт
+            max_today = max([int(cell.value) for cell in col_today])
+            field[col] = max_today
+        except:
+            # если в этой колонке нет 24 заполненных ячеек
+            continue
 
     # вставить ряд
     data = [today] + list(field.values())
