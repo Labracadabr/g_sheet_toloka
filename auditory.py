@@ -12,19 +12,16 @@ from acc_secret_info import accounts
 if platform.system() == 'Windows':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-# толока
-token = accounts['td.pro']['token']
-# token = accounts['Yandex']['token']
-HEADERS = {"Authorization": "OAuth %s" % token, "Content-Type": "application/JSON"}
-
 # данные для подключения к таблице
 sheet_url = 'https://docs.google.com/spreadsheets/d/148B3MkcYPsDml1t4U94AitewazaIAnrC-yZK6mOtLhU/edit#gid=1414102686'
 spreadsheet = gc.open_by_url(sheet_url)
 # названия листов
 hour_country = 'Hour country'
 hour_lang = 'Hour language'
+hour_yandex = 'Hour yandex'
 day_country = 'Day country'
 day_lang = 'Day language'
+day_yandex = 'Day yandex'
 
 # аргументы запросов
 # countries = ['RU', 'KE', 'PK', 'NG', 'BR', 'IN', 'TR', 'UA', 'ET', 'VN', 'BY', 'KZ', 'PH', 'ID', 'MA', 'VE', 'UZ', 'CO', 'MX', 'US', 'FR', 'ZA', 'DZ', 'LK', 'EG', 'AR', 'MG', 'BD', 'PE', 'CI', 'GH', 'CN', 'TN', 'MZ', 'CM', 'AE', 'MD', 'ES', 'EC', 'PL', 'ZM', 'SA', 'DO', 'MM', 'MY', 'PT', 'BF', 'AM', 'SN', 'DK']
@@ -67,42 +64,53 @@ def insert_data_row(data: list, page: str, row: int):
     print('обновлено ячеек:', len(data))
 
 
-async def ping_auditory(by: str, value: str, session) -> int:
+async def ping_auditory(by: str, value: str, session, site: str) -> int:
+    if 'yandex' == site:
+        token = accounts['Yandex']['token']
+        base_url = 'https://tasks.yandex.ru'
+        project = 1482
+    else:
+        base_url = 'https://platform.toloka.ai'
+        token = accounts['td.pro']['token']
+        project = 150010
+
     filter_by = {
         # "region_by_phone": [{'category': "computed", 'key': "region_by_phone", 'operator': "IN", 'value': value}],
         "languages": [{"category": "profile", "key": "languages", "operator": "IN", "value": value}, ],
         "skill": [{"category": "skill", "key": lang_skills.get(value), "operator": "EQ", "value": 100}],
         "country": [{"category": "profile", "key": "country", "operator": "EQ", "value": value}],
     }
-    # base_url = 'https://tasks.yandex.ru'
-    base_url = 'https://platform.toloka.ai'
-    project = 1482 if 'yandex' in base_url else 150010
+    headers = {"Authorization": "OAuth %s" % token, "Content-Type": "application/JSON"}
     payload = {"projectId": project, "adultContent": False, "filter": {"or": filter_by[by]}}
-
     # запрос
-    async with session.post(f'{base_url}/api/adjuster/adjustments/', headers=HEADERS, json=payload) as response:
-        # print('response', value, payload)
-        if response.status == 200:
-            data = await response.json()
-            return int(data['parameters']['value'])
-        # если ответ плохой
-        else:
-            print(f'{response.status} error for {value}')
-            return 0
+    try:
+        async with session.post(f'{base_url}/api/adjuster/adjustments/', headers=headers, json=payload) as response:
+            # print('response', value, payload)
+            if response.status == 200:
+                data = await response.json()
+                return int(data['parameters']['value'])
+            # если ответ плохой
+            else:
+                print(f'{response.status} error for {value}')
+                return 0
+    except Exception as e:
+        print('error', value)
+        print(e)
+        return -1
 
 
-async def auditory_update(by: str, field: list) -> list:
+async def auditory_update(by: str, field: list, site: str) -> list:
     # сгенерировать пустой словарь длиной в число колонок
     field = {i: 0 for i in field}
 
-    # послать 3 одинаковые асинхронные серии запросов
-    for req in range(1, 4):
+    # послать несколько одинаковых асинхронных серий запросов
+    for req in range(1, 5):
         if req != 1:  # задержка между сериями
-            await asyncio.sleep(10)
+            await asyncio.sleep(5)
 
         print(req, 'check by', by)
         async with aiohttp.ClientSession() as session:
-            tasks = [ping_auditory(by=by, value=i, session=session) for i in field]
+            tasks = [ping_auditory(by=by, value=i, session=session, site=site) for i in field]
             results = await asyncio.gather(*tasks)
             print('mid results:', results)
 
@@ -119,18 +127,24 @@ async def auditory_update(by: str, field: list) -> list:
 def hour_update():
     now = str(datetime.now(tz).strftime("%d/%m, %H:%M"))
 
-    # страны
-    data = asyncio.run(auditory_update(field=countries, by='country'))
+    # страны toloka
+    data = asyncio.run(auditory_update(field=countries, by='country', site='toloka'))
     data = [now] + data
     insert_empty_row(page=hour_country)
     insert_data_row(data=data, row=2, page=hour_country)
 
-    # языки
-    data1 = asyncio.run(auditory_update(field=list(lang_skills.keys()), by="skill"))  # подтвержденные тестом
-    data2 = asyncio.run(auditory_update(field=languages, by="languages"))  # все
+    # языки toloka
+    data1 = asyncio.run(auditory_update(field=list(lang_skills.keys()), by="skill", site='toloka'))  # подтвержденные тестом
+    data2 = asyncio.run(auditory_update(field=languages, by="languages", site='toloka'))  # все
     data = [now] + data1 + data2
     insert_empty_row(page=hour_lang)
     insert_data_row(data=data, row=2, page=hour_lang)
+
+    # языки yandex
+    data = asyncio.run(auditory_update(field=languages, by="languages", site='yandex'))  # все
+    data = [now] + data
+    insert_empty_row(page=hour_yandex)
+    insert_data_row(data=data, row=2, page=hour_yandex)
 
 
 def daily_max(col_amount: int, from_page: str, to_page: str):
@@ -169,21 +183,12 @@ def daily_max(col_amount: int, from_page: str, to_page: str):
 
 
 def day_update():
-    daily_max(col_amount=len(countries), from_page=hour_country, to_page=day_country)
-    daily_max(col_amount=len(lang_skills) + len(languages), from_page=hour_lang, to_page=day_lang)
+    daily_max(col_amount=len(countries), from_page=hour_country, to_page=day_country)  # толока страны
+    daily_max(col_amount=len(lang_skills) + len(languages), from_page=hour_lang, to_page=day_lang)  # толока языки
+    daily_max(col_amount=len(languages), from_page=hour_yandex, to_page=day_yandex)  # яндекс языки
 
 
 if __name__ == '__main__':
-    hour_update()
-    day_update()
+    pass
+    # hour_update()
 
-    schedule.every().hour.at(':00').do(hour_update)
-    schedule.every().day.at('23:30').do(daily_max)
-    print(schedule.get_jobs())
-
-    # поллинг каждые n секунд
-    n = 20
-    while 1:
-        # проверить, не настало ли время
-        schedule.run_pending()
-        time.sleep(n)
