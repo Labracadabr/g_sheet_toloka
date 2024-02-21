@@ -22,9 +22,9 @@ hour_yandex = 'Hour yandex'
 day_country = 'Day country'
 day_lang = 'Day language'
 day_yandex = 'Day yandex'
+main_page = 'Сводная'
 
 # аргументы запросов
-# countries = ['RU', 'KE', 'PK', 'NG', 'BR', 'IN', 'TR', 'UA', 'ET', 'VN', 'BY', 'KZ', 'PH', 'ID', 'MA', 'VE', 'UZ', 'CO', 'MX', 'US', 'FR', 'ZA', 'DZ', 'LK', 'EG', 'AR', 'MG', 'BD', 'PE', 'CI', 'GH', 'CN', 'TN', 'MZ', 'CM', 'AE', 'MD', 'ES', 'EC', 'PL', 'ZM', 'SA', 'DO', 'MM', 'MY', 'PT', 'BF', 'AM', 'SN', 'DK']
 countries = ['RU', 'KE', 'PK', 'NG', 'BR', 'IN', 'TR', 'UA', 'ET', 'VN', 'BY', 'KZ', 'PH', 'ID', 'MA', 'VE', 'UZ', 'CO', 'MX', 'US', 'FR', 'ZA', 'DZ', 'LK', 'EG', 'AR', 'MG', 'BD', 'PE', 'CI', 'GH', 'CN', 'TN', 'MZ', 'CM', 'AE', 'MD', 'ES', 'EC', 'PL', 'ZM', 'SA', 'DO', 'MM', 'MY', 'PT', 'BF', 'AM', 'SN', 'DK', 'JO', 'AZ', 'CD', 'KG', 'TG', 'GB', 'DE', 'RO', 'RS', 'CA', 'CL', 'SV', 'IT', 'JM', 'TJ', 'UG', 'GE', 'GT', 'ZW', 'BJ', 'CR', 'BG', 'HT', 'BO', 'BW', 'MW', 'ML', 'NP', 'NL', 'PA', 'AU', 'JP', 'TZ', 'UY', 'AO', 'CG', 'FI', 'GA', 'GR', 'IQ', 'LV', 'LT', 'NI', 'SE', 'AT', 'MK', 'TH', 'BA', 'GN', 'HU', 'IL', 'RW', 'SL', 'TT', 'TM', 'YE', 'AL', 'BH', 'BE', 'TD', 'HN', 'IE', 'LB', 'PS', 'KR', 'TW', 'KH', 'HR', 'PF', 'IR', 'MU', 'NE', 'OM', 'PY', 'QA', 'BT', 'BN', 'BI', 'CZ', 'DJ', 'EE', 'KW', 'LS', 'LY', 'MQ', 'NA', 'PR', 'VC', 'SK', 'SZ', 'SY', 'AD', 'CU', 'CY', 'GF', 'MR', 'NZ', 'NO', 'SG', 'SR']
 lang_skills = {
     "EN": "26366",
@@ -52,6 +52,7 @@ def insert_empty_row(page: str):
     print('Вставлена пустая строка')
 
 
+# вставить строку с числами в начале таблицы
 @api_decorator
 def insert_data_row(data: list, page: str, row: int):
     # приготовить список с объектами ячеек
@@ -62,6 +63,26 @@ def insert_data_row(data: list, page: str, row: int):
     # обновить все разом
     spreadsheet.worksheet(page).update_cells(cell_list)
     print('обновлено ячеек:', len(data))
+
+
+# вставить в сводную две колонки, сортированные по числу либо имени
+@api_decorator
+def insert_two_cols(data: dict, by: str, start_row: int, start_col: int):
+    data_tuples = [(k, data[k]) for k in data]
+    if by == 'name':
+        sorted_data = sorted(data_tuples, key=lambda x: x[0], reverse=False)
+    elif by == 'amount':
+        sorted_data = sorted(data_tuples, key=lambda x: x[1], reverse=True)
+
+    # приготовить список с объектами ячеек
+    cell_list = []
+    for i, (key, val) in enumerate(sorted_data, start=1):
+        cell_list.append(Cell(row=start_row+i, col=start_col, value=key))  # страна/язык
+        cell_list.append(Cell(row=start_row+i, col=start_col+1, value=val))  # число аудитории
+
+    # обновить все разом
+    spreadsheet.worksheet(main_page).update_cells(cell_list)
+    print('обновлено ячеек:', len(data)*2)
 
 
 async def ping_auditory(by: str, value: str, session, site: str) -> int:
@@ -82,6 +103,7 @@ async def ping_auditory(by: str, value: str, session, site: str) -> int:
     }
     headers = {"Authorization": "OAuth %s" % token, "Content-Type": "application/JSON"}
     payload = {"projectId": project, "adultContent": False, "filter": {"or": filter_by[by]}}
+
     # запрос
     try:
         async with session.post(f'{base_url}/api/adjuster/adjustments/', headers=headers, json=payload) as response:
@@ -91,11 +113,10 @@ async def ping_auditory(by: str, value: str, session, site: str) -> int:
                 return int(data['parameters']['value'])
             # если ответ плохой
             else:
-                print(f'{response.status} error for {value}')
+                print(value, 'error:', response.status)
                 return 0
     except Exception as e:
-        print('error', value)
-        print(e)
+        print(value, 'error:', e)
         return -1
 
 
@@ -124,6 +145,7 @@ async def auditory_update(by: str, field: list, site: str) -> list:
     return list(field.values())
 
 
+# замер аудитории каждый час
 def hour_update():
     now = str(datetime.now(tz).strftime("%d/%m, %H:%M"))
 
@@ -147,48 +169,71 @@ def hour_update():
     insert_data_row(data=data, row=2, page=hour_yandex)
 
 
-def daily_max(col_amount: int, from_page: str, to_page: str):
+# прочитать последние 24 ряда в каждой колонке и вставить максимальное значение в дневной лист
+def daily_max(col_amount: int, from_page: str, to_page: str) -> dict:
     print(f'daily_max from_page: {from_page}, to_page: {to_page}')
     today = str(datetime.now(tz).date())
-    # сгенерировать пустой словарь длиной в число стран или языков
-    field = {i: 0 for i in range(col_amount)}
 
     # весь лист за посл 24 часа
     while 1:
         try:
-            last_24h_data = spreadsheet.worksheet(from_page).range(2, 2, 25, col_amount + 1)
+            last_24h_data = spreadsheet.worksheet(from_page).range(1, 2, 25, col_amount + 1)
             break
         except gspread.exceptions.APIError as e:
             print('ОШИБКА daily_max', e)
             time.sleep(5)
     print('прочитано ячеек', len(last_24h_data))
 
+    # сгенерировать пустой словарь длиной в число стран или языков
+    field = {item.value: 0 for item in last_24h_data[0:col_amount]}
+
     for i, col in enumerate(field):
         try:
-            # 24 верхние ячейки одной страны
+            # 24 верхние ячейки одной колонки
             col_today = [last_24h_data[c] for c in range(i, len(last_24h_data), col_amount)]
 
             # макс из этих 24 шт
-            max_today = max([int(cell.value) for cell in col_today])
+            max_today = max([int(cell.value) if cell.value.isnumeric() else 0 for cell in col_today])
             field[col] = max_today
-        except:
+        except Exception as e:
+            print('error', e)
             # если в этой колонке нет 24 заполненных ячеек
             continue
 
     # вставить ряд
-    data = [today] + list(field.values())
     insert_empty_row(page=to_page)
-    insert_data_row(data=data, row=2, page=to_page)
-    print(data)
+    insert_data_row(data=[today]+list(field.values()), row=2, page=to_page)
+
+    return field
 
 
+# прочитать макс на каждую страну за день, внести это новой строкой в Day и обновить этими данными сводную
 def day_update():
-    daily_max(col_amount=len(countries), from_page=hour_country, to_page=day_country)  # толока страны
-    daily_max(col_amount=len(lang_skills) + len(languages), from_page=hour_lang, to_page=day_lang)  # толока языки
-    daily_max(col_amount=len(languages), from_page=hour_yandex, to_page=day_yandex)  # яндекс языки
+    # толока страны
+    data = daily_max(col_amount=len(countries), from_page=hour_country, to_page=day_country)
+    insert_two_cols(data=data, start_col=1, start_row=3, by='name')
+    insert_two_cols(data=data, start_col=3, start_row=3, by='amount')
+
+    # толока языки
+    data = daily_max(col_amount=len(lang_skills) + len(languages), from_page=hour_lang, to_page=day_lang)
+    skilled, unskilled = {}, {}
+    for lang in data:
+        if len(lang) == 2:
+            skilled[lang] = data[lang]
+        else:
+            unskilled[lang] = data[lang]
+
+    insert_two_cols(data=unskilled, start_col=6, start_row=3, by='name')    # не подтвержденные
+    insert_two_cols(data=unskilled, start_col=8, start_row=3, by='amount')  # не подтвержденные
+    insert_two_cols(data=skilled, start_col=11, start_row=3, by='amount')    # подтвержденные
+
+    # яндекс языки
+    data = daily_max(col_amount=len(languages), from_page=hour_yandex, to_page=day_yandex)
+    insert_two_cols(data=data, start_col=14, start_row=3, by='name')
+    insert_two_cols(data=data, start_col=16, start_row=3, by='amount')
 
 
 if __name__ == '__main__':
+    day_update()
     pass
     # hour_update()
-
