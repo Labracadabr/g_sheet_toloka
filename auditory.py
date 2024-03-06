@@ -6,8 +6,7 @@ from datetime import datetime
 import schedule
 import platform
 from gspread import Cell
-
-from common import *
+from common import api_decorator, tz, gc
 from acc_secret_info import accounts
 if platform.system() == 'Windows':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -207,30 +206,58 @@ def daily_max(col_amount: int, from_page: str, to_page: str) -> dict:
     return field
 
 
+# средний максимум за последнюю неделю
+def week_avg(col_amount: int, from_page: str):
+    print(f'week_avg from_page: {from_page}')
+
+    # весь лист за посл 7 суток
+    last_7d_data = read_range(from_page=from_page, coord=(1, 2, 8, col_amount+1))
+
+    # сгенерировать пустой словарь длиной в число стран или языков
+    field = {item.value: 0 for item in last_7d_data[0:col_amount]}
+
+    for i, col in enumerate(field):
+        try:
+            # 7 верхних ячеек одной колонки
+            col_today = [last_7d_data[c] for c in range(i, len(last_7d_data), col_amount)]
+
+            # среднее из этих 7 шт
+            avg = int(sum([int(cell.value) if cell.value.isnumeric() else 0 for cell in col_today])/7)
+            field[col] = avg
+        except Exception as e:
+            print('error', e)
+            # если в этой колонке нет 7 заполненных ячеек
+            continue
+    return field
+
+
 # прочитать макс на каждую страну за день, внести это новой строкой в Day и обновить этими данными сводную
 def day_update():
     # толока страны
-    data = daily_max(col_amount=len(countries), from_page=hour_country, to_page=day_country)
-    insert_two_cols(data=data, start_col=1, start_row=3, by='name')
-    insert_two_cols(data=data, start_col=3, start_row=3, by='amount')
+    daily_max(col_amount=len(countries), from_page=hour_country, to_page=day_country)
+    week_avg_data = week_avg(col_amount=len(countries), from_page=day_country)
+    insert_two_cols(data=week_avg_data, start_col=1, start_row=3, by='name')
+    insert_two_cols(data=week_avg_data, start_col=3, start_row=3, by='amount')
 
     # толока языки
-    data = daily_max(col_amount=len(lang_skills) + len(languages), from_page=hour_lang, to_page=day_lang)
+    daily_max(col_amount=len(lang_skills) + len(languages), from_page=hour_lang, to_page=day_lang)
+    week_avg_data = week_avg(col_amount=len(lang_skills) + len(languages), from_page=day_lang)
     skilled, unskilled = {}, {}
-    for lang in data:
+    for lang in week_avg_data:
         if len(lang) == 2:
-            skilled[lang] = data[lang]
+            skilled[lang] = week_avg_data[lang]
         else:
-            unskilled[lang] = data[lang]
+            unskilled[lang] = week_avg_data[lang]
 
     insert_two_cols(data=unskilled, start_col=6, start_row=3, by='name')    # не подтвержденные
     insert_two_cols(data=unskilled, start_col=8, start_row=3, by='amount')  # не подтвержденные
     insert_two_cols(data=skilled, start_col=11, start_row=3, by='amount')    # подтвержденные
 
     # яндекс языки
-    data = daily_max(col_amount=len(languages), from_page=hour_yandex, to_page=day_yandex)
-    insert_two_cols(data=data, start_col=14, start_row=3, by='name')
-    insert_two_cols(data=data, start_col=16, start_row=3, by='amount')
+    daily_max(col_amount=len(languages), from_page=hour_yandex, to_page=day_yandex)
+    week_avg_data = week_avg(col_amount=len(languages), from_page=day_yandex)
+    insert_two_cols(data=week_avg_data, start_col=14, start_row=3, by='name')
+    insert_two_cols(data=week_avg_data, start_col=16, start_row=3, by='amount')
 
 
 if __name__ == '__main__':
