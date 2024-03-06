@@ -85,6 +85,13 @@ def insert_two_cols(data: dict, by: str, start_row: int, start_col: int):
     print('обновлено ячеек:', len(data)*2)
 
 
+@api_decorator
+def read_range(from_page: str, coord: tuple):
+    data = spreadsheet.worksheet(from_page).range(*coord)
+    print('прочитано ячеек', len(data))
+    return data
+
+
 async def ping_auditory(by: str, value: str, session, site: str) -> int:
     if 'yandex' == site:
         token = accounts['Yandex']['token']
@@ -175,14 +182,7 @@ def daily_max(col_amount: int, from_page: str, to_page: str) -> dict:
     today = str(datetime.now(tz).date())
 
     # весь лист за посл 24 часа
-    while 1:
-        try:
-            last_24h_data = spreadsheet.worksheet(from_page).range(1, 2, 25, col_amount + 1)
-            break
-        except gspread.exceptions.APIError as e:
-            print('ОШИБКА daily_max', e)
-            time.sleep(5)
-    print('прочитано ячеек', len(last_24h_data))
+    last_24h_data = read_range(from_page=from_page, coord=(1, 2, 25, col_amount+1))
 
     # сгенерировать пустой словарь длиной в число стран или языков
     field = {item.value: 0 for item in last_24h_data[0:col_amount]}
