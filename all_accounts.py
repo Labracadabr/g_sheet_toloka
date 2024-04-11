@@ -8,7 +8,7 @@ import requests
 import json
 from gspread import Cell
 
-from common import *
+from common import tz, gc, api_decorator
 from acc_secret_info import accounts
 from datetime import datetime
 from pprint import pprint
@@ -31,7 +31,7 @@ month_map = {
 
 
 def month_year_now() -> str:  # > например "Ноябрь 2024"
-    current_date = datetime.now()
+    current_date = datetime.now(tz=tz)
     string = f'{month_map[str(current_date.month)]} {current_date.year}'
     return string
 
@@ -145,7 +145,7 @@ def google_append(page: str, data: list):
 def read_account(row_num, account: str, page: str, token):
     print('read_account', account)
     # у толоки и яндекса разный домен
-    if 'yandex' in account.lower():
+    if 'yandex' in account.lower() or 'avito' in account.lower():
         base_url = 'https://tasks.yandex.ru'
     else:
         base_url = 'https://platform.toloka.ai'
@@ -296,7 +296,7 @@ def count_funds(acc: str, base_url: str, token: str) -> dict:
 def read_comment(comment: str) -> tuple:
     try:  # разделить коммент на 3 части по символу # и убрать пробелы по краям
         comment, client, manager = map(lambda x: x.strip(), comment.split('#'))
-    except ValueError:  # если разделителей не два, то client и manager останутся пустые, а comment не изменится
+    except:  # если разделителей не два, то client и manager останутся пустые, а comment не изменится
         client = manager = ''
     return comment, client, manager
 
@@ -314,7 +314,7 @@ def read_project(project_id, account, acc_dict, base_url: str, token: str):
     proj_name = project['public_name']
 
     # данные из private_comment. если в поле нет разделителя, то client и manager будут пустые
-    comment, client, manager = read_comment(project['private_comment'])
+    comment, client, manager = read_comment(project.get('private_comment'))
 
     # финансы проекта
     spent = acc_dict[project_id].get('spent')
