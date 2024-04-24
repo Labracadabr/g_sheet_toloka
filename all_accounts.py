@@ -142,7 +142,7 @@ def google_append(page: str, data: list):
 # TOLOKA API
 
 # собрать все данные с аккаунта
-def read_account(row_num, account: str, page: str, token):
+def read_account(row_num, account: str, page: str, token, session):
     print('read_account', account)
     # у толоки и яндекса разный домен
     if 'yandex' in account.lower() or 'avito' in account.lower():
@@ -159,13 +159,14 @@ def read_account(row_num, account: str, page: str, token):
         for message_thread in toloka_client.get_message_threads(folder=['INBOX', 'UNREAD'], batch_size=300):
             msgs += 1
     else:
-        r = requests.get(url=f'{base_url}/api/users/current/requester', headers=headers)
+        r = session.get(url=f'{base_url}/api/users/current/requester', headers=headers)
+        print(f'{r.status_code = }')
         requester: dict = r.json()
         balance = int(requester.get('balance'))
-        msgs = count_unread_msgs(account=account, base_url=base_url)
+        msgs = count_unread_msgs(account=account, base_url=base_url, session=session)
 
     # финансы аккаунта
-    acc_dict = count_funds(acc=account, base_url=base_url, token=token)
+    acc_dict = count_funds(acc=account, base_url=base_url, token=token, session=session)
     spent = acc_dict.get('total_spent')
     block = acc_dict.get('total_block')
 
@@ -195,15 +196,15 @@ def read_account(row_num, account: str, page: str, token):
         # тут читаем только словари
         if not isinstance(acc_dict[project_id], dict):
             continue
-        read_project(project_id, account, acc_dict, base_url, token)
+        read_project(project_id, account, acc_dict, base_url, token, session)
 
 
 # кол-во сообщений в аккаунте
-def count_unread_msgs(account: str, base_url: str) -> int:
+def count_unread_msgs(account: str, base_url: str, session) -> int:
     token = accounts[account]['token']
     url = f'{base_url}/api/message/status'
     headers = {"Authorization": "OAuth %s" % token, "Content-Type": "application/JSON"}
-    r = requests.get(url, headers=headers)
+    r = session.get(url, headers=headers)
     unread = r.json().get('unread')
 
     # # старый способ
@@ -215,7 +216,7 @@ def count_unread_msgs(account: str, base_url: str) -> int:
 
 
 # заморожено, потрачено, кол-во пулов и проектов
-def count_funds(acc: str, base_url: str, token: str) -> dict:
+def count_funds(acc: str, base_url: str, token: str, session) -> dict:
     # период трат
     from_date = datetime.today().replace(day=1).strftime('%Y-%m-%d')  # включительно. тут 1ое число текущего месяца
     till_date = '3023-11-30'  # не включительно. если указать дату из будущего, то поиск будет до сейчас, поэтому 3023
@@ -228,7 +229,7 @@ def count_funds(acc: str, base_url: str, token: str) -> dict:
     print('url', url)
 
     # ответ
-    response = requests.get(url, headers=headers)
+    response = session.get(url, headers=headers)
     full_money_data = json.loads(response.content)
 
     # создать ключи в словаре и переменные для подсчета
@@ -302,9 +303,9 @@ def read_comment(comment: str) -> tuple:
 
 
 # данные с проекта
-def read_project(project_id, account, acc_dict, base_url: str, token: str):
+def read_project(project_id, account, acc_dict, base_url: str, token: str, session):
     headers = {"Authorization": "OAuth %s" % token, "Content-Type": "application/JSON"}
-    r = requests.get(url=f'{base_url}/api/v1/projects/{project_id}', headers=headers)
+    r = session.get(url=f'{base_url}/api/v1/projects/{project_id}', headers=headers)
 
     # данные проекта
     # project = toloka_client.get_project(project_id=project_id)
@@ -374,7 +375,8 @@ def accounts_update():
                     # для запросов у дочерних акков нужен не собственный токен, а токен родительского акка
                     token = accounts['td.pro']['token']
 
-                read_account(row_num, account, page=main_page, token=token)
+                session = requests.Session()
+                read_account(row_num, account, page=main_page, token=token, session=session)
 
             # вписать время последнего обновления
             put_upd_time(page=main_page)
