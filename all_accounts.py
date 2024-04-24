@@ -320,8 +320,31 @@ def read_project(project_id, account, acc_dict, base_url: str, token: str):
     spent = acc_dict[project_id].get('spent')
     block = acc_dict[project_id].get('block')
 
+    # пулы проекта
+    r = session.get(url=f'{base_url}/api/v1/pools?project_id={project_id}', headers=headers)
+    r = r.json().get('items')
+    pool_list = (i.get('id') for i in r)
+
+    # на проверке, принято, потрачено
+    on_review = 0
+    accepted = 0
+    spent_all_time = 0
+    for pool_id in pool_list:
+        pool_stat_url = f'{base_url}/api/new/requester/pools/{pool_id}/stats?fields=approvedAssignmentsCount%2ConReviewAssignmentsCount%2CrejectedAssignmentsCount%2CsubmittedAssignmentsCount%2CexpectedBudget%2CexpectedTolokaFee'
+        r = session.get(url=pool_stat_url, headers=headers)
+        print(f'{pool_id = }, {r.status_code = }')
+        r = r.json()
+        on_review += int(r.get('onReviewAssignmentsCount'))
+        spent_all_time += float(r.get('spentBudget')) + float(r.get('tolokaFee'))
+        accepted += int(r.get('approvedAssignmentsCount'))
+
+    # новые колонки
+    print(f'{on_review = }, {spent_all_time = }, {accepted = }, ')
+    avg_cost = round(spent_all_time / accepted, 3)if accepted else 0
+    paid_cost = '?'
+
     # внести в таблицу
-    project_data = [proj_name, create_date, account, spent, block, proj_url, client, manager, comment]
+    project_data = [proj_name, create_date, account, spent, block, proj_url, client, manager, comment, avg_cost, paid_cost, on_review]
     google_append(page=month_page, data=project_data)
 
 
