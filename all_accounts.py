@@ -232,11 +232,11 @@ def count_funds(acc: str, base_url: str, token: str) -> dict:
     full_money_data = json.loads(response.content)
 
     # создать ключи в словаре и переменные для подсчета
-    output_keys = ('projects', 'pools', 'total_spent', 'total_block')
+    output_keys = ('projects', 'pools', 'total_spent', 'total_block', 'pool_list')
     projects_dict = {}
     for i in output_keys:
         projects_dict.setdefault(i, 0)
-    projects, pools = [], []
+    projects, pools, pool_list = [], [], []
     total_spent = total_block = 0
 
     # перебор каждой даты
@@ -280,7 +280,7 @@ def count_funds(acc: str, base_url: str, token: str) -> dict:
             total_spent += spent
             total_block += block
             projects.append(project_id)
-            pools.append(pool_id)
+            pool_list.append(pool_id)
 
     # посчитать кол-во уникальных
     projects = len(set(projects))
