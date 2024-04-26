@@ -118,7 +118,7 @@ def merge_cells():
         "startRowIndex": 1,
         "endRowIndex": 2,
         "startColumnIndex": 3,
-        "endColumnIndex": 7, }, "mergeType": "MERGE_ALL"}}, ], }
+        "endColumnIndex": 8, }, "mergeType": "MERGE_ALL"}}, ], }
     spreadsheet.batch_update(body)
     print('mergeCells')
 
@@ -169,13 +169,14 @@ def read_account(row_num, account: str, page: str, token, session):
     acc_dict = count_funds(acc=account, base_url=base_url, token=token, session=session)
     spent = acc_dict.get('total_spent')
     block = acc_dict.get('total_block')
+    bonus = acc_dict.get('bonus')
 
     # кол-во проектов и пулов
     projects = acc_dict.get('projects')
     pools = acc_dict.get('pools')
 
     # внести строку в главный лист таблицы
-    acc_data = [account, msgs, balance, spent, block, projects, pools]
+    acc_data = [account, msgs, balance, spent, block, projects, pools, bonus]
     # приготовить список с объектами ячеек
     cell_list = []
     for i, val in enumerate(acc_data, start=1):
@@ -215,7 +216,7 @@ def count_unread_msgs(account: str, base_url: str, session) -> int:
     return unread
 
 
-# заморожено, потрачено, кол-во пулов и проектов
+# заморожено, потрачено, кол-во пулов и проектов, бонусы
 def count_funds(acc: str, base_url: str, token: str, session) -> dict:
     # период трат
     from_date = datetime.today().replace(day=1).strftime('%Y-%m-%d')  # включительно. тут 1ое число текущего месяца
@@ -233,18 +234,30 @@ def count_funds(acc: str, base_url: str, token: str, session) -> dict:
     full_money_data = json.loads(response.content)
 
     # создать ключи в словаре и переменные для подсчета
-    output_keys = ('projects', 'pools', 'total_spent', 'total_block', 'pool_list')
+    output_keys = ('projects', 'pools', 'total_spent', 'total_block', 'bonus')
     projects_dict = {}
     for i in output_keys:
         projects_dict.setdefault(i, 0)
-    projects, pools, pool_list = [], [], []
-    total_spent = total_block = 0
+    projects, pools = [], []
+    total_spent = total_block = bonus = 0
 
     # перебор каждой даты
     for date_bill in full_money_data:
-        # bonus_data += date_bill['bonuses']
         if not isinstance(date_bill, dict):
             continue
+
+        # выплаченные бонусы
+        bonuses = date_bill.get('bonuses')
+        if bonuses:
+            print(f'{bonuses = }')
+            if acc == 'td.pro5':  # если дочерний аккаунт, то ключи словарей отличаются
+                for bonus_data in bonuses:
+                    if bonus_data['requesterId'] == accounts[acc]['id']:
+                        bonus += float(bonus_data['spent'] + bonus_data['fee'])
+            else:
+                for bonus_data in bonuses:
+                    if bonus_data['requester']['id'] == accounts[acc]['id']:
+                        bonus += float(bonus_data['amount'] + bonus_data['tolokaFee'])
 
         # каждый assignment за эту дату
         for assignment_bill in date_bill['assignments']:
@@ -262,16 +275,13 @@ def count_funds(acc: str, base_url: str, token: str, session) -> dict:
             pool_id = assignment_bill['pool']['id']
             projects_dict.setdefault(project_id, {})
 
-            # потрачено и заморожено
+            # потрачено, заморожено
             if acc == 'td.pro5':
                 spent = float(assignment_bill['spent'] + assignment_bill['fee'])
                 block = float(assignment_bill['blockedSpent'] + assignment_bill['blockedFee'])
             else:
                 spent = float(assignment_bill['totalIncome'] + assignment_bill['tolokaFee'])
                 block = float(assignment_bill['blockedIncome'] + assignment_bill['blockedTolokaFee'])
-            # spent = float(Decimal(assignment_bill['spent'] + assignment_bill['fee']).quantize(Decimal("1.00")))
-            # block = float(
-            #     Decimal(assignment_bill['blockedSpent'] + assignment_bill['blockedFee']).quantize(Decimal("1.00")))
 
             # плюсануть в словарь проекта
             projects_dict[project_id]['spent'] = projects_dict[project_id].get('spent', 0) + spent
@@ -281,7 +291,6 @@ def count_funds(acc: str, base_url: str, token: str, session) -> dict:
             total_spent += spent
             total_block += block
             projects.append(project_id)
-            pool_list.append(pool_id)
 
     # посчитать кол-во уникальных
     projects = len(set(projects))
@@ -339,13 +348,12 @@ def read_project(project_id, account, acc_dict, base_url: str, token: str, sessi
         spent_all_time += float(r.get('spentBudget')) + float(r.get('tolokaFee'))
         accepted += int(r.get('approvedAssignmentsCount'))
 
-    # новые колонки
+    # средняя цена за задание
     print(f'{on_review = }, {spent_all_time = }, {accepted = }, ')
-    avg_cost = round(spent_all_time / accepted, 3)if accepted else 0
-    paid_cost = '?'
+    avg_cost = round(spent_all_time / accepted, 3) if accepted else 0
 
     # внести в таблицу
-    project_data = [proj_name, create_date, account, spent, block, proj_url, client, manager, comment, avg_cost, paid_cost, on_review]
+    project_data = [proj_name, create_date, account, spent, block, proj_url, client, manager, comment, avg_cost, on_review]
     google_append(page=month_page, data=project_data)
 
 
@@ -368,6 +376,7 @@ def accounts_update():
             update_alert(page=main_page)
 
             # собрать и внести данные каждого аккаунта в гугл таблицы
+            session = requests.Session()
             for row_num, account in enumerate(accounts, start=3):
                 # токен
                 token = accounts[account]['token']
@@ -375,7 +384,6 @@ def accounts_update():
                     # для запросов у дочерних акков нужен не собственный токен, а токен родительского акка
                     token = accounts['td.pro']['token']
 
-                session = requests.Session()
                 read_account(row_num, account, page=main_page, token=token, session=session)
 
             # вписать время последнего обновления
