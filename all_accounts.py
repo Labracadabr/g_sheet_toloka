@@ -227,6 +227,8 @@ def count_funds(acc: str, base_url: str, token: str, session) -> dict:
     url = f'{base_url}/api/new/requester/finance/expense-log?from={from_date}&to={till_date}'
     if acc == 'td.pro5':
         url = f'{base_url}/api/billing/company/expense-log?from={from_date}&to={till_date}'
+    elif 'id' in acc.lower():
+        return dict()
     print('url', url)
 
     # ответ
