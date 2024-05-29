@@ -2,7 +2,6 @@ import schedule
 import time
 from datetime import datetime
 
-from new_pools import pools
 from all_accounts import accounts_update
 from auditory import hour_update, day_update
 print('launching')
@@ -18,9 +17,6 @@ def gmt_shift(hour: int) -> str:
 # финансы аккаунтов - неск раз в день, часы указать в gmt 0
 schedule.every().day.at(f"{gmt_shift(7)}:30").do(accounts_update)
 schedule.every().day.at(f"{gmt_shift(15)}:30").do(accounts_update)
-
-# # новые пулы - каждые 24 ч в полночь по gmt 0
-schedule.every().day.at(f"{gmt_shift(23)}:55").do(pools)
 
 # замер аудитории каждый час
 schedule.every().hour.at(':00').do(hour_update)
